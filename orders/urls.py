@@ -1,0 +1,16 @@
+from django.urls import path
+from .views import OrderViewSet, OrderItemViewSet, CreateOrderView, ListOrdersView, PrinterSettingsView
+
+urlpatterns = [
+    path('create/', CreateOrderView.as_view(), name='create-order'),
+    path('list/', ListOrdersView.as_view(), name='order-list'),
+    path('', OrderViewSet.as_view({'get': 'list'}), name='order-list'),
+    path('<int:pk>/', OrderViewSet.as_view({
+        'get': 'retrieve',
+        'put': 'update',
+        'patch': 'partial_update',
+        'delete': 'destroy'
+    }), name='order-detail'),
+    path('<int:pk>/update-status/', OrderViewSet.as_view({'post': 'update_status'}), name='order-update-status'),
+    path('printer-settings/', PrinterSettingsView.as_view(), name='printer-settings'),
+] 
