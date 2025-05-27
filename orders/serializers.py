@@ -61,11 +61,13 @@ class OrderSerializer(serializers.ModelSerializer):
     customer_phone = serializers.SerializerMethodField()
     customer_address = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_method = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    change_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model = Order
         fields = ('id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'status_display', 'total_amount',
-                 'notes', 'items', 'created_at', 'updated_at')
+                 'notes', 'items', 'created_at', 'updated_at', 'payment_method', 'change_amount')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
     def get_customer_name(self, obj):
@@ -92,23 +94,26 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         child=serializers.DictField(),
         write_only=True
     )
+    payment_method = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    change_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model = Order
-        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items', 'total_amount')
+        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items', 'total_amount', 'payment_method', 'change_amount')
         read_only_fields = ('id', 'created_at', 'updated_at', 'status')
 
     def create(self, validated_data):
-        """
-        Cria um novo pedido com seus itens e ingredientes.
-        """
         items_data = validated_data.pop('items')
         total_amount = validated_data.pop('total_amount', 0)
+        payment_method = validated_data.get('payment_method')
+        change_amount = validated_data.get('change_amount')
         
         order = Order.objects.create(
             **validated_data,
             total_amount=total_amount,
-            status='pending'
+            status='pending',
+            payment_method=payment_method,
+            change_amount=change_amount
         )
         
         for item_data in items_data:
@@ -120,7 +125,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 unit_price=item_data.get('unit_price', 0),
                 notes=item_data.get('notes', '')
             )
-            
             # Adicionar ingredientes se houver
             if 'ingredients' in item_data:
                 for ingredient_data in item_data['ingredients']:
@@ -134,7 +138,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                         )
                     except Ingredient.DoesNotExist:
                         continue
-        
         return order
 
 class OrderUpdateSerializer(serializers.ModelSerializer):

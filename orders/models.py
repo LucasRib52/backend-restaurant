@@ -21,6 +21,8 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Valor Total')
     notes = models.TextField(blank=True, verbose_name='Observações')
+    payment_method = models.CharField(max_length=30, blank=True, null=True, verbose_name='Forma de Pagamento')
+    change_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Troco para')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

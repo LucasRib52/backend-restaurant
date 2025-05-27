@@ -16,23 +16,7 @@ class SettingsSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Settings
-        fields = [
-            'id',
-            'business_name',
-            'business_phone',
-            'business_address',
-            'business_email',
-            'business_photo',
-            'business_slug',
-            'opening_time',
-            'closing_time',
-            'is_open',
-            'delivery_available',
-            'delivery_fee',
-            'minimum_order_value',
-            'tax_rate',
-            'opening_hours',
-        ]
+        fields = '__all__'
         extra_kwargs = {
             'business_name': {'required': False},
             'business_phone': {'required': False},

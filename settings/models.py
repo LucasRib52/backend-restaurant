@@ -1,6 +1,7 @@
 from django.db import models
 from accounts.models import User
 from django.utils.text import slugify
+from django.db.models import JSONField
 
 class OpeningHour(models.Model):
     DAYS_OF_WEEK = [
@@ -47,6 +48,7 @@ class Settings(models.Model):
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='Taxa de Imposto (%)')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    payment_methods = JSONField(default=dict, blank=True, null=True, verbose_name='Formas de Pagamento')
 
     class Meta:
         verbose_name = 'Configuração'

@@ -12,6 +12,8 @@ class ClientOrder(models.Model):
     customer_address = models.TextField()
     notes = models.TextField(blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=30, blank=True, null=True, verbose_name='Forma de Pagamento')
+    change_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Troco para')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -11,10 +11,12 @@ class ClientOrderCreateSerializer(serializers.ModelSerializer):
         child=serializers.DictField(),
         write_only=True
     )
+    payment_method = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    change_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model = ClientOrder
-        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items', 'total_amount')
+        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items', 'total_amount', 'payment_method', 'change_amount')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
     def create(self, validated_data):
@@ -23,17 +25,23 @@ class ClientOrderCreateSerializer(serializers.ModelSerializer):
         """
         items_data = validated_data.pop('items')
         total_amount = validated_data.pop('total_amount', 0)
+        payment_method = validated_data.pop('payment_method', None)
+        change_amount = validated_data.pop('change_amount', None)
         
         # Criar o pedido principal
         order = Order.objects.create(
             status='pending',
-            total_amount=total_amount
+            total_amount=total_amount,
+            payment_method=payment_method,
+            change_amount=change_amount
         )
         
         # Criar o pedido do cliente
         client_order = ClientOrder.objects.create(
             order=order,
             total_amount=total_amount,
+            payment_method=payment_method,
+            change_amount=change_amount,
             **validated_data
         )
         
