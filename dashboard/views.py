@@ -18,7 +18,7 @@ class DashboardViewSet(viewsets.ViewSet):
     """
     ViewSet para o dashboard com estatísticas e métricas.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

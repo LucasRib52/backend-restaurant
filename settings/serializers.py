@@ -2,16 +2,18 @@ from rest_framework import serializers
 from .models import Settings, OpeningHour
 
 class OpeningHourSerializer(serializers.ModelSerializer):
-    day_of_week_display = serializers.CharField(source='get_day_of_week_display', read_only=True)
     class Meta:
         model = OpeningHour
-        fields = ['id', 'day_of_week', 'day_of_week_display', 'opening_time', 'closing_time', 'is_open', 'is_holiday']
+        fields = ['id', 'day_of_week', 'opening_time', 'closing_time', 'is_open', 'is_holiday']
 
 class SettingsSerializer(serializers.ModelSerializer):
     """
     Serializer para o model Settings.
     """
     opening_hours = OpeningHourSerializer(many=True, read_only=True)
+    business_photo = serializers.ImageField(required=False, allow_null=True)
+    business_slug = serializers.SlugField(required=False, allow_null=True)
+    
     class Meta:
         model = Settings
         fields = [
@@ -30,4 +32,16 @@ class SettingsSerializer(serializers.ModelSerializer):
             'minimum_order_value',
             'tax_rate',
             'opening_hours',
-        ] 
+        ]
+        extra_kwargs = {
+            'business_name': {'required': False},
+            'business_phone': {'required': False},
+            'business_address': {'required': False},
+            'business_email': {'required': False},
+            'business_photo': {'required': False},
+            'opening_time': {'required': False},
+            'closing_time': {'required': False},
+            'delivery_fee': {'required': False},
+            'minimum_order_value': {'required': False},
+            'tax_rate': {'required': False},
+        } 

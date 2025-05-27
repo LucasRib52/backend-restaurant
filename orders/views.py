@@ -42,7 +42,6 @@ class OrderViewSet(viewsets.ModelViewSet):
     ViewSet para gerenciamento de pedidos.
     """
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
     permission_classes = [permissions.AllowAny]
     http_method_names = ['get', 'put', 'patch', 'delete', 'post']
 
@@ -50,6 +49,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         Retorna o serializer apropriado baseado na ação.
         """
+        if self.action == 'create':
+            return OrderCreateSerializer
         if self.action in ['update', 'partial_update']:
             return OrderUpdateSerializer
         return OrderSerializer
@@ -59,6 +60,27 @@ class OrderViewSet(viewsets.ModelViewSet):
         Retorna todos os pedidos.
         """
         return Order.objects.all().order_by('-created_at')
+
+    def create(self, request, *args, **kwargs):
+        """
+        Cria um novo pedido.
+        """
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # Pegar as configurações do primeiro usuário
+            settings = Settings.objects.first()
+            if not settings:
+                return Response(
+                    {'error': 'Nenhuma configuração encontrada'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            order = serializer.save()
+            return Response(
+                OrderSerializer(order).data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
     def update_status(self, request, pk=None):

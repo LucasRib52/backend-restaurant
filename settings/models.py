@@ -31,7 +31,7 @@ class Settings(models.Model):
     """
     Modelo que representa as configurações do sistema.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='settings', null=True, blank=True)
     business_name = models.CharField(max_length=100, verbose_name='Nome do Negócio')
     business_phone = models.CharField(max_length=20, verbose_name='Telefone')
     business_address = models.CharField(max_length=200, verbose_name='Endereço')

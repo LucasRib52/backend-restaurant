@@ -13,12 +13,12 @@ class SettingsDetailView(generics.RetrieveUpdateAPIView):
     Apenas o próprio usuário pode acessar/alterar suas configurações.
     """
     serializer_class = SettingsSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = []
 
     def get_object(self):
-        # Retorna as configurações do usuário logado, cria se não existir
+        # Sempre retorna ou cria uma configuração global
         obj, created = Settings.objects.get_or_create(
-            user=self.request.user,
+            user=None,
             defaults={
                 "business_name": "Meu Negócio",
                 "business_phone": "",
@@ -36,20 +36,66 @@ class SettingsDetailView(generics.RetrieveUpdateAPIView):
         return obj
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        try:
+            instance = self.get_object()
+            data = request.data.copy()
+            
+            # Remove opening_hours dos dados se existir
+            opening_hours_data = data.pop('opening_hours', None)
+            
+            # Atualiza as configurações básicas
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
 
-        # Atualiza os horários de funcionamento se enviados
-        opening_hours_data = request.data.get('opening_hours')
-        if opening_hours_data:
-            # Se vier como string (por multipart), faz o parse
-            if isinstance(opening_hours_data, str):
-                opening_hours_data = json.loads(opening_hours_data)
-            instance.opening_hours.all().delete()
-            for oh in opening_hours_data:
-                OpeningHour.objects.create(settings=instance, **oh)
+            # Atualiza os horários de funcionamento
+            if opening_hours_data:
+                try:
+                    # Se vier como string (por multipart), faz o parse
+                    if isinstance(opening_hours_data, str):
+                        # Remove colchetes extras se existirem
+                        if opening_hours_data.startswith('[') and opening_hours_data.endswith(']'):
+                            opening_hours_data = opening_hours_data[1:-1]
+                        opening_hours_data = json.loads(opening_hours_data)
+                    
+                    # Se for uma lista com um único item string, faz parse novamente
+                    if isinstance(opening_hours_data, list) and len(opening_hours_data) == 1 and isinstance(opening_hours_data[0], str):
+                        opening_hours_data = json.loads(opening_hours_data[0])
+                    
+                    # Remove horários existentes
+                    instance.opening_hours.all().delete()
+                    
+                    # Cria novos horários
+                    for oh_data in opening_hours_data:
+                        # Garante que os dados estão no formato correto
+                        day_of_week = int(oh_data.get('day_of_week', 0))
+                        opening_time = str(oh_data.get('opening_time', '08:00'))
+                        closing_time = str(oh_data.get('closing_time', '18:00'))
+                        is_open = bool(oh_data.get('is_open', True))
+                        is_holiday = bool(oh_data.get('is_holiday', False))
 
-        return Response(serializer.data)
+                        OpeningHour.objects.create(
+                            settings=instance,
+                            day_of_week=day_of_week,
+                            opening_time=opening_time,
+                            closing_time=closing_time,
+                            is_open=is_open,
+                            is_holiday=is_holiday
+                        )
+                except Exception as e:
+                    print(f"Erro ao processar horários: {str(e)}")
+                    print(f"Dados recebidos: {opening_hours_data}")
+                    return Response(
+                        {"opening_hours": str(e)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Retorna os dados atualizados
+            return Response(self.get_serializer(instance).data)
+            
+        except Exception as e:
+            print(f"Erro geral: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

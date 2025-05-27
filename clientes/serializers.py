@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from settings.models import Settings, OpeningHour
-from products.models import Category, Product
+from products.models import Category, Product, ProductIngredient, Ingredient, IngredientCategory
 from django.conf import settings as django_settings
 
 class OpeningHourSerializer(serializers.ModelSerializer):
@@ -43,13 +43,32 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'description']
 
+class ProductIngredientSerializer(serializers.ModelSerializer):
+    ingredient = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductIngredient
+        fields = ['ingredient', 'is_required', 'max_quantity']
+
+    def get_ingredient(self, obj):
+        return {
+            'id': obj.ingredient.id,
+            'name': obj.ingredient.name,
+            'price': str(obj.ingredient.price),
+            'category': {
+                'id': obj.ingredient.category.id if obj.ingredient.category else None,
+                'name': obj.ingredient.category.name if obj.ingredient.category else None
+            }
+        }
+
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     image = serializers.SerializerMethodField()
+    ingredients = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'image', 'category_name', 'is_active']
+        fields = ['id', 'name', 'description', 'price', 'image', 'category_name', 'is_active', 'ingredients']
 
     def get_image(self, obj):
         if obj.image:
@@ -57,4 +76,8 @@ class ProductSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.image.url)
             return f"{django_settings.MEDIA_URL}{obj.image}"
-        return None 
+        return None
+
+    def get_ingredients(self, obj):
+        product_ingredients = ProductIngredient.objects.filter(product=obj).select_related('ingredient', 'ingredient__category')
+        return ProductIngredientSerializer(product_ingredients, many=True).data 

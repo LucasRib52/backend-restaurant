@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'dashboard',
     'settings',
     'clientes',
+    'client_orders',
 ]
 
 MIDDLEWARE = [
@@ -147,25 +148,24 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
-    ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',  # Permite acesso a todos por padrão
+        'rest_framework.permissions.AllowAny',
     ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
-    'UNAUTHENTICATED_USER': None,
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Permite CORS de qualquer origem
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://192.168.1.65:5173",  # IP real do computador
+    "http://192.168.1.65:5173",  # IP do frontend na rede local
 ]
 
 CORS_ALLOW_METHODS = [
@@ -190,9 +190,11 @@ CORS_ALLOW_HEADERS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://192.168.1.65:5173",  # IP real do computador
+    "http://192.168.1.65:5173",  # IP do frontend na rede local
 ]
 
 # File upload settings

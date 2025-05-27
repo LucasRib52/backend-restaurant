@@ -1,5 +1,4 @@
 from django.db import models
-from accounts.models import User
 from django.core.validators import MinValueValidator
 
 class Category(models.Model):
@@ -11,7 +10,6 @@ class Category(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='categories', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Categoria'
@@ -33,7 +31,6 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='products', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Produto'

@@ -9,7 +9,7 @@ from .serializers import (
     ProductDetailSerializer, IngredientSerializer,
     ProductIngredientSerializer
 )
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 import json
 
 # Create your views here.
@@ -20,7 +20,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return Category.objects.all()
@@ -44,7 +44,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
     def get_serializer_class(self):
         """
@@ -58,42 +63,76 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         Retorna a lista de produtos ordenada por data de criação crescente.
         """
-        return Product.objects.all().order_by('created_at')
+        queryset = Product.objects.all()
+        category_id = self.request.query_params.get('category', None)
+        if category_id is not None:
+            queryset = queryset.filter(category_id=category_id)
+        return queryset
 
     def perform_create(self, serializer):
-        product = serializer.save()
-        ingredients = []
-        for key in self.request.data:
-            if key.startswith('ingredients['):
-                ingredients.append(self.request.data[key])
-        for ing_data in ingredients:
-            try:
-                # Tenta decodificar o JSON
-                ing_obj = json.loads(ing_data)
-                ing_name = ing_obj.get('name')
-                cat_name = ing_obj.get('category')
-                is_required = ing_obj.get('isRequired', False)
-                max_quantity = ing_obj.get('maxQuantity', 1)
-                if not ing_name:
+        try:
+            print("Dados recebidos:", self.request.data)
+            print("Dados do serializer:", serializer.validated_data)
+            
+            product = serializer.save()
+            print("Produto salvo:", product.name)
+            
+            ingredients = []
+            for key in self.request.data:
+                if key.startswith('ingredients['):
+                    ingredients.append(self.request.data[key])
+            
+            print("Ingredientes recebidos:", ingredients)
+            
+            for ing_data in ingredients:
+                try:
+                    # Tenta decodificar o JSON
+                    ing_obj = json.loads(ing_data)
+                    print("Processando ingrediente:", ing_obj)
+                    
+                    ing_name = ing_obj.get('name')
+                    cat_name = ing_obj.get('category')
+                    is_required = ing_obj.get('isRequired', False)
+                    max_quantity = ing_obj.get('maxQuantity', 1)
+                    
+                    if not ing_name:
+                        print("Nome do ingrediente vazio, pulando...")
+                        continue
+                        
+                    category = None
+                    if cat_name:
+                        category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
+                        print(f"Categoria criada/encontrada: {category.name}")
+                        
+                    ingredient, _ = Ingredient.objects.get_or_create(
+                        name=ing_name,
+                        defaults={'category': category}
+                    )
+                    print(f"Ingrediente criado/encontrado: {ingredient.name}")
+                    
+                    # Se já existe mas não tem categoria, atualiza
+                    if ingredient.category != category:
+                        ingredient.category = category
+                        ingredient.save()
+                        print(f"Categoria do ingrediente atualizada para: {category.name}")
+                    
+                    # Cria o novo ProductIngredient
+                    pi = ProductIngredient.objects.create(
+                        product=product,
+                        ingredient=ingredient,
+                        is_required=bool(is_required),
+                        max_quantity=int(max_quantity)
+                    )
+                    print(f"ProductIngredient criado: {pi}")
+                    
+                except Exception as e:
+                    print(f"Erro ao processar ingrediente: {str(e)}")
                     continue
-                category = None
-                if cat_name:
-                    category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
-                ingredient, _ = Ingredient.objects.get_or_create(name=ing_name, defaults={'category': category})
-                # Se já existe mas não tem categoria, atualiza
-                if ingredient.category != category:
-                    ingredient.category = category
-                    ingredient.save()
-                # Sempre cria ou atualiza o ProductIngredient com os campos corretos
-                pi = ProductIngredient.objects.create(
-                    product=product,
-                    ingredient=ingredient,
-                    is_required=bool(is_required),
-                    max_quantity=int(max_quantity)
-                )
-            except Exception as e:
-                print(f"Erro ao processar ingrediente: {str(e)}")
-                continue
+        except Exception as e:
+            print(f"Erro ao criar produto: {str(e)}")
+            print(f"Tipo do erro: {type(e)}")
+            print(f"Detalhes do erro: {e.__dict__}")
+            raise
 
     def perform_update(self, serializer):
         """
@@ -164,14 +203,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             print("Nenhum ingrediente recebido, mantendo os existentes")
 
-    def get_permissions(self):
-        """
-        Define as permissões baseado na ação.
-        """
-        if self.action in ['list', 'retrieve']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
-
     @action(detail=True, methods=['post'])
     def add_ingredient(self, request, pk=None):
         """
@@ -236,7 +267,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
     """
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return Ingredient.objects.all()

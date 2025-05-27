@@ -5,10 +5,9 @@ class CategorySerializer(serializers.ModelSerializer):
     """
     Serializer para o modelo Category.
     """
-    company = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = Category
-        fields = ('id', 'name', 'description', 'is_active', 'created_at', 'updated_at', 'company')
+        fields = ('id', 'name', 'description', 'is_active', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 class IngredientCategorySerializer(serializers.ModelSerializer):
@@ -44,14 +43,12 @@ class ProductSerializer(serializers.ModelSerializer):
         source='category'
     )
     available_ingredients = ProductIngredientSerializer(many=True, read_only=True, source='ingredients')
-    company = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Product
         fields = ('id', 'category', 'category_id', 'name',
                  'description', 'price', 'image', 'is_active',
-                 'available_ingredients', 'company',
-                 'created_at', 'updated_at')
+                 'available_ingredients', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
     def to_representation(self, instance):

@@ -57,14 +57,31 @@ class OrderSerializer(serializers.ModelSerializer):
     Inclui informações dos itens do pedido.
     """
     items = OrderItemSerializer(many=True, read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.SerializerMethodField()
+    customer_address = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = Order
-        fields = ('id', 'customer_name', 'customer_phone',
-                 'customer_address', 'status', 'status_display', 'total_amount',
+        fields = ('id', 'customer_name', 'customer_phone', 'customer_address', 'status', 'status_display', 'total_amount',
                  'notes', 'items', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def get_customer_name(self, obj):
+        if hasattr(obj, 'client_order'):
+            return obj.client_order.customer_name
+        return None
+
+    def get_customer_phone(self, obj):
+        if hasattr(obj, 'client_order'):
+            return obj.client_order.customer_phone
+        return None
+
+    def get_customer_address(self, obj):
+        if hasattr(obj, 'client_order'):
+            return obj.client_order.customer_address
+        return None
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     """
@@ -78,17 +95,22 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items')
-        read_only_fields = ('id', 'created_at', 'updated_at', 'status', 'total_amount', 'restaurant')
+        fields = ('customer_name', 'customer_phone', 'customer_address', 'notes', 'items', 'total_amount')
+        read_only_fields = ('id', 'created_at', 'updated_at', 'status')
 
     def create(self, validated_data):
         """
         Cria um novo pedido com seus itens e ingredientes.
         """
         items_data = validated_data.pop('items')
-        order = Order.objects.create(**validated_data)
+        total_amount = validated_data.pop('total_amount', 0)
         
-        total_amount = 0
+        order = Order.objects.create(
+            **validated_data,
+            total_amount=total_amount,
+            status='pending'
+        )
+        
         for item_data in items_data:
             # Criar o item do pedido
             order_item = OrderItem.objects.create(
@@ -103,7 +125,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             if 'ingredients' in item_data:
                 for ingredient_data in item_data['ingredients']:
                     try:
-                        ingrediente = Ingredient.objects.get(id=ingredient_data['ingredient_id'])
+                        ingrediente = Ingredient.objects.get(id=ingredient_data['ingredient'])
                         OrderItemIngredient.objects.create(
                             order_item=order_item,
                             ingredient=ingrediente,
@@ -112,11 +134,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                         )
                     except Ingredient.DoesNotExist:
                         continue
-            
-            total_amount += order_item.unit_price * order_item.quantity
         
-        order.total_amount = total_amount
-        order.save()
         return order
 
 class OrderUpdateSerializer(serializers.ModelSerializer):

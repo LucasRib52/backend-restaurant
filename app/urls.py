@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/dashboard/', include('dashboard.urls')),
     path('api/settings/', include('settings.urls')),
     path('api/clientes/', include('clientes.urls')),
+    path('api/client-orders/', include('client_orders.urls')),
 ]
 
 # Servir arquivos de mídia em desenvolvimento

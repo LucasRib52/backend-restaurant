@@ -2,9 +2,10 @@ from django.urls import path
 from .views import OrderViewSet, OrderItemViewSet, CreateOrderView, ListOrdersView, PrinterSettingsView
 
 urlpatterns = [
-    path('create/', CreateOrderView.as_view(), name='create-order'),
-    path('list/', ListOrdersView.as_view(), name='order-list'),
-    path('', OrderViewSet.as_view({'get': 'list'}), name='order-list'),
+    path('', OrderViewSet.as_view({
+        'get': 'list',
+        'post': 'create'
+    }), name='order-list'),
     path('<int:pk>/', OrderViewSet.as_view({
         'get': 'retrieve',
         'put': 'update',
