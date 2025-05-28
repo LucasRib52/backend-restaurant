@@ -43,17 +43,20 @@ class OpeningHour(models.Model):
         """
         now = datetime.now().time()
         current_day = datetime.now().weekday()
+        next_day = (self.day_of_week + 1) % 7
 
-        # Se não estiver aberto hoje, retorna False
-        if not self.is_open or self.day_of_week != current_day:
+        if not self.is_open:
             return False
 
-        # Se o fechamento é no dia seguinte
-        if self.next_day_closing:
-            return now >= self.opening_time or now <= self.closing_time
+        # Se for o dia da abertura
+        if current_day == self.day_of_week:
+            return now >= self.opening_time
         
-        # Se o fechamento é no mesmo dia
-        return self.opening_time <= now <= self.closing_time
+        # Se for o dia do fechamento (próximo dia)
+        elif current_day == next_day and self.next_day_closing:
+            return now <= self.closing_time
+        
+        return False
 
 class Settings(models.Model):
     """
