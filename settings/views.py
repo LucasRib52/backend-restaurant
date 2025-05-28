@@ -15,7 +15,7 @@ class SettingsDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = SettingsSerializer
 
     def get_object(self):
-        # Sempre retorna ou cria uma configuração global
+        
         obj, created = Settings.objects.get_or_create(
             defaults={
                 "business_name": "Meu Negócio",
