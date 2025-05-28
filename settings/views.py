@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .models import Settings, OpeningHour
 from .serializers import SettingsSerializer, OpeningHourSerializer
 import json
+from datetime import datetime
 
 # Create your views here.
 
@@ -70,8 +71,9 @@ class SettingsDetailView(generics.RetrieveUpdateAPIView):
                         closing_time = str(oh_data.get('closing_time', '18:00'))
                         is_open = bool(oh_data.get('is_open', True))
                         is_holiday = bool(oh_data.get('is_holiday', False))
-
-                        OpeningHour.objects.create(
+                        
+                        # Cria o horário de funcionamento
+                        opening_hour = OpeningHour.objects.create(
                             settings=instance,
                             day_of_week=day_of_week,
                             opening_time=opening_time,
@@ -79,6 +81,11 @@ class SettingsDetailView(generics.RetrieveUpdateAPIView):
                             is_open=is_open,
                             is_holiday=is_holiday
                         )
+                        
+                        # Chama o método clean para definir next_day_closing
+                        opening_hour.clean()
+                        opening_hour.save()
+
                 except Exception as e:
                     print(f"Erro ao processar horários: {str(e)}")
                     print(f"Dados recebidos: {opening_hours_data}")
