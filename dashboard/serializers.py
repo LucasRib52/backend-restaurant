@@ -8,7 +8,7 @@ class DailyStatsSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = DailyStats
-        fields = ('id', 'restaurant', 'date', 'total_orders',
+        fields = ('id', 'date', 'total_orders',
                  'total_revenue', 'average_order_value',
                  'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
@@ -20,7 +20,7 @@ class ProductStatsSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = ProductStats
-        fields = ('id', 'restaurant', 'product_name', 'total_quantity',
+        fields = ('id', 'product_name', 'total_quantity',
                  'total_revenue', 'period_start', 'period_end',
                  'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
@@ -32,7 +32,7 @@ class CategoryStatsSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = CategoryStats
-        fields = ('id', 'restaurant', 'category_name', 'total_orders',
+        fields = ('id', 'category_name', 'total_orders',
                  'total_revenue', 'period_start', 'period_end',
                  'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')

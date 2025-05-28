@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Avg, Q
@@ -12,13 +12,11 @@ from .serializers import (
 )
 from orders.models import Order, OrderItem
 from products.models import Product, Category
-from accounts.models import User
 
 class DashboardViewSet(viewsets.ViewSet):
     """
     ViewSet para o dashboard com estatísticas e métricas.
     """
-    permission_classes = [permissions.AllowAny]
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
@@ -29,11 +27,6 @@ class DashboardViewSet(viewsets.ViewSet):
             today = timezone.now().date()
             week_ago = today - timedelta(days=7)
             month_ago = today - timedelta(days=30)
-
-            # Total de clientes
-            total_customers = User.objects.filter(
-                is_staff=False
-            ).count()
 
             # Estatísticas do dia
             today_orders = Order.objects.filter(
@@ -82,7 +75,6 @@ class DashboardViewSet(viewsets.ViewSet):
                 'week_revenue': week_stats['revenue'],
                 'month_orders': month_stats['orders'],
                 'month_revenue': month_stats['revenue'],
-                'total_customers': total_customers,
                 'recent_orders': [
                     {
                         'id': order.id,

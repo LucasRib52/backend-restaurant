@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions, status, views
+from rest_framework import viewsets, status, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count
@@ -11,18 +11,15 @@ from .serializers import (
     OrderUpdateSerializer, OrderItemSerializer
 )
 from settings.models import Settings
-from rest_framework.permissions import IsAuthenticated
 
 class CreateOrderView(views.APIView):
     """
-    View para criar pedidos sem autenticação.
+    View para criar pedidos.
     """
-    permission_classes = [permissions.AllowAny]
-
     def post(self, request, *args, **kwargs):
         serializer = OrderCreateSerializer(data=request.data)
         if serializer.is_valid():
-            # Pegar as configurações do primeiro usuário
+            # Pegar as configurações do sistema
             settings = Settings.objects.first()
             if not settings:
                 return Response(
@@ -42,7 +39,6 @@ class OrderViewSet(viewsets.ModelViewSet):
     ViewSet para gerenciamento de pedidos.
     """
     serializer_class = OrderSerializer
-    permission_classes = [permissions.AllowAny]
     http_method_names = ['get', 'put', 'patch', 'delete', 'post']
 
     def get_serializer_class(self):
@@ -67,7 +63,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            # Pegar as configurações do primeiro usuário
+            # Pegar as configurações do sistema
             settings = Settings.objects.first()
             if not settings:
                 return Response(
@@ -159,7 +155,6 @@ class OrderItemViewSet(viewsets.ModelViewSet):
     """
     queryset = OrderItem.objects.all()
     serializer_class = OrderItemSerializer
-    permission_classes = [permissions.AllowAny]
     http_method_names = ['get', 'post', 'put', 'patch', 'delete']
 
     def get_queryset(self):
@@ -184,10 +179,8 @@ class OrderItemViewSet(viewsets.ModelViewSet):
 
 class ListOrdersView(views.APIView):
     """
-    View para listar pedidos sem autenticação.
+    View para listar pedidos.
     """
-    permission_classes = [permissions.AllowAny]
-
     def get(self, request, *args, **kwargs):
         orders = Order.objects.all().order_by('-created_at')
         serializer = OrderSerializer(orders, many=True)
@@ -197,8 +190,6 @@ class PrinterSettingsView(views.APIView):
     """
     View para gerenciar configurações da impressora.
     """
-    permission_classes = [permissions.AllowAny]
-
     def get(self, request):
         settings = Settings.objects.first()
         return Response({

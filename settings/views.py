@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.response import Response
 from .models import Settings, OpeningHour
 from .serializers import SettingsSerializer, OpeningHourSerializer
@@ -9,16 +9,13 @@ import json
 
 class SettingsDetailView(generics.RetrieveUpdateAPIView):
     """
-    API para recuperar e atualizar as configurações do usuário logado.
-    Apenas o próprio usuário pode acessar/alterar suas configurações.
+    API para recuperar e atualizar as configurações do sistema.
     """
     serializer_class = SettingsSerializer
-    permission_classes = []
 
     def get_object(self):
         # Sempre retorna ou cria uma configuração global
         obj, created = Settings.objects.get_or_create(
-            user=None,
             defaults={
                 "business_name": "Meu Negócio",
                 "business_phone": "",

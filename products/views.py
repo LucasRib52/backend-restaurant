@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count
@@ -9,7 +9,6 @@ from .serializers import (
     ProductDetailSerializer, IngredientSerializer,
     ProductIngredientSerializer
 )
-from rest_framework.permissions import AllowAny
 import json
 
 # Create your views here.
@@ -20,7 +19,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return Category.objects.all()
@@ -44,7 +42,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -249,9 +246,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         ingredient_id = request.data.get('ingredient_id')
 
         try:
+            ingredient = Ingredient.objects.get(
+                id=ingredient_id
+            )
+        except Ingredient.DoesNotExist:
+            return Response(
+                {'error': 'Ingrediente não encontrado'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
             product_ingredient = ProductIngredient.objects.get(
                 product=product,
-                ingredient_id=ingredient_id
+                ingredient=ingredient
             )
             product_ingredient.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -267,7 +274,6 @@ class IngredientViewSet(viewsets.ModelViewSet):
     """
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return Ingredient.objects.all()
@@ -278,8 +284,8 @@ class IngredientViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def available(self, request):
         """
-        Retorna apenas ingredientes disponíveis.
+        Retorna todos os ingredientes disponíveis.
         """
-        ingredients = self.get_queryset().filter(is_available=True)
-        serializer = self.get_serializer(ingredients, many=True)
+        ingredients = Ingredient.objects.all()
+        serializer = IngredientSerializer(ingredients, many=True)
         return Response(serializer.data)
