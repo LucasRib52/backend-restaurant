@@ -90,3 +90,27 @@ class Settings(models.Model):
         if not self.business_slug and self.business_name:
             self.business_slug = slugify(self.business_name)
         super().save(*args, **kwargs)
+
+    def is_open_now(self):
+        from datetime import datetime
+        now = datetime.now()
+        weekday = now.weekday()
+        time_now = now.time()
+
+        for oh in self.opening_hours.filter(is_open=True):
+            day = oh.day_of_week
+            open_time = oh.opening_time
+            close_time = oh.closing_time
+            next_day = (day + 1) % 7
+
+            if oh.next_day_closing:
+                # Se hoje é o dia da abertura e já passou da abertura
+                if weekday == day and time_now >= open_time:
+                    return True
+                # Se hoje é o dia do fechamento e ainda não passou do fechamento
+                if weekday == next_day and time_now <= close_time:
+                    return True
+            else:
+                if weekday == day and open_time <= time_now <= close_time:
+                    return True
+        return False
