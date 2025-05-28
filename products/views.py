@@ -121,6 +121,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 pi = ProductIngredient.objects.create(
                     product=product,
                     ingredient=ingredient,
+                    group_name=cat_name,
                     is_required=bool(is_required),
                     max_quantity=int(max_quantity)
                 )
@@ -188,6 +189,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                     pi = ProductIngredient.objects.create(
                         product=product,
                         ingredient=ingredient,
+                        group_name=cat_name,
                         is_required=bool(is_required),
                         max_quantity=int(max_quantity)
                     )

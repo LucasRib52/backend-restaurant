@@ -84,6 +84,7 @@ class ProductIngredient(models.Model):
     """
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='ingredients')
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    group_name = models.CharField(max_length=100, verbose_name='Grupo do Produto')
     is_required = models.BooleanField(default=False)
     max_quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     created_at = models.DateTimeField(auto_now_add=True)
@@ -94,4 +95,4 @@ class ProductIngredient(models.Model):
         verbose_name_plural = 'Ingredientes dos Produtos'
 
     def __str__(self):
-        return f"{self.product.name} - {self.ingredient.name}"
+        return f"{self.product.name} - {self.group_name} - {self.ingredient.name}"
