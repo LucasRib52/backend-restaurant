@@ -67,69 +67,68 @@ class ProductViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        try:
-            print("Dados recebidos:", self.request.data)
-            print("Dados do serializer:", serializer.validated_data)
+        """
+        Cria um novo produto e seus ingredientes.
+        """
+        print("Iniciando criação do produto...")
+        # Primeiro, salva o produto
+        product = serializer.save()
+        print(f"Produto criado: {product.name}")
+        
+        # Processa os ingredientes
+        ingredients = []
+        for key in self.request.data:
+            if key.startswith('ingredients['):
+                ingredients.append(self.request.data[key])
             
-            product = serializer.save()
-            print("Produto salvo:", product.name)
-            
-            ingredients = []
-            for key in self.request.data:
-                if key.startswith('ingredients['):
-                    ingredients.append(self.request.data[key])
-            
-            print("Ingredientes recebidos:", ingredients)
-            
-            for ing_data in ingredients:
-                try:
-                    # Tenta decodificar o JSON
-                    ing_obj = json.loads(ing_data)
-                    print("Processando ingrediente:", ing_obj)
-                    
-                    ing_name = ing_obj.get('name')
-                    cat_name = ing_obj.get('category')
-                    is_required = ing_obj.get('isRequired', False)
-                    max_quantity = ing_obj.get('maxQuantity', 1)
-                    
-                    if not ing_name:
-                        print("Nome do ingrediente vazio, pulando...")
-                        continue
-                        
-                    category = None
-                    if cat_name:
-                        category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
-                        print(f"Categoria criada/encontrada: {category.name}")
-                        
-                    ingredient, _ = Ingredient.objects.get_or_create(
-                        name=ing_name,
-                        defaults={'category': category}
-                    )
-                    print(f"Ingrediente criado/encontrado: {ingredient.name}")
-                    
-                    # Se já existe mas não tem categoria, atualiza
-                    if ingredient.category != category:
-                        ingredient.category = category
-                        ingredient.save()
-                        print(f"Categoria do ingrediente atualizada para: {category.name}")
-                    
-                    # Cria o novo ProductIngredient
-                    pi = ProductIngredient.objects.create(
-                        product=product,
-                        ingredient=ingredient,
-                        is_required=bool(is_required),
-                        max_quantity=int(max_quantity)
-                    )
-                    print(f"ProductIngredient criado: {pi}")
-                    
-                except Exception as e:
-                    print(f"Erro ao processar ingrediente: {str(e)}")
+        print("Ingredientes recebidos:", ingredients)
+        
+        for ing_data in ingredients:
+            try:
+                # Tenta decodificar o JSON
+                ing_obj = json.loads(ing_data)
+                print("Processando ingrediente:", ing_obj)
+                
+                ing_name = ing_obj.get('name')
+                cat_name = ing_obj.get('category')
+                is_required = ing_obj.get('isRequired', False)
+                max_quantity = ing_obj.get('maxQuantity', 1)
+                
+                if not ing_name:
+                    print("Nome do ingrediente vazio, pulando...")
                     continue
-        except Exception as e:
-            print(f"Erro ao criar produto: {str(e)}")
-            print(f"Tipo do erro: {type(e)}")
-            print(f"Detalhes do erro: {e.__dict__}")
-            raise
+                    
+                # Cria ou obtém a categoria do grupo
+                category = None
+                if cat_name:
+                    category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
+                    print(f"Categoria criada/encontrada: {category.name}")
+                    
+                # Cria ou obtém o ingrediente
+                ingredient, _ = Ingredient.objects.get_or_create(
+                    name=ing_name,
+                    defaults={'category': category}
+                )
+                print(f"Ingrediente criado/encontrado: {ingredient.name}")
+                
+                # Se já existe mas não tem categoria, atualiza
+                if ingredient.category != category:
+                    ingredient.category = category
+                    ingredient.save()
+                    print(f"Categoria do ingrediente atualizada para: {category.name}")
+                
+                # Cria o novo ProductIngredient
+                pi = ProductIngredient.objects.create(
+                    product=product,
+                    ingredient=ingredient,
+                    is_required=bool(is_required),
+                    max_quantity=int(max_quantity)
+                )
+                print(f"ProductIngredient criado: {pi}")
+                
+            except Exception as e:
+                print(f"Erro ao processar ingrediente: {str(e)}")
+                continue
 
     def perform_update(self, serializer):
         """

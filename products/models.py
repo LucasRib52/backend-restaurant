@@ -92,7 +92,6 @@ class ProductIngredient(models.Model):
     class Meta:
         verbose_name = 'Ingrediente do Produto'
         verbose_name_plural = 'Ingredientes dos Produtos'
-        unique_together = ['product', 'ingredient']
 
     def __str__(self):
         return f"{self.product.name} - {self.ingredient.name}"
