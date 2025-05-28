@@ -131,11 +131,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework settings
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+}
+
+# JWT settings
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=10),    # Token expira em 10 horas
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=10),   # Refresh token também expira em 10 horas
+    'ROTATE_REFRESH_TOKENS': False,                  # Não gera novo refresh token
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # CORS settings
@@ -162,6 +173,7 @@ CORS_ALLOW_METHODS = [
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
+    'authorization',
     'content-type',
     'dnt',
     'origin',
