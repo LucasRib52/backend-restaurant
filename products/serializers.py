@@ -29,7 +29,7 @@ class ProductIngredientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductIngredient
-        fields = ['id', 'ingredient', 'is_required', 'max_quantity']
+        fields = ['id', 'ingredient', 'group_name', 'is_required', 'max_quantity']
 
 class ProductSerializer(serializers.ModelSerializer):
     """

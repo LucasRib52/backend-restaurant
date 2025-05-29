@@ -83,6 +83,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             
         print("Ingredientes recebidos:", ingredients)
         
+        # Agrupa ingredientes por grupo para garantir consistência
+        group_map = {}
         for ing_data in ingredients:
             try:
                 # Tenta decodificar o JSON
@@ -90,46 +92,52 @@ class ProductViewSet(viewsets.ModelViewSet):
                 print("Processando ingrediente:", ing_obj)
                 
                 ing_name = ing_obj.get('name')
-                cat_name = ing_obj.get('category')
+                group_name = ing_obj.get('groupName')  # Mudando de category para groupName
                 is_required = ing_obj.get('isRequired', False)
                 max_quantity = ing_obj.get('maxQuantity', 1)
                 
-                if not ing_name:
-                    print("Nome do ingrediente vazio, pulando...")
+                if not ing_name or not group_name:
+                    print("Nome do ingrediente ou grupo vazio, pulando...")
                     continue
-                    
-                # Cria ou obtém a categoria do grupo
-                category = None
-                if cat_name:
-                    category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
-                    print(f"Categoria criada/encontrada: {category.name}")
-                    
-                # Cria ou obtém o ingrediente
-                ingredient, _ = Ingredient.objects.get_or_create(
-                    name=ing_name,
-                    defaults={'category': category}
-                )
-                print(f"Ingrediente criado/encontrado: {ingredient.name}")
                 
-                # Se já existe mas não tem categoria, atualiza
-                if ingredient.category != category:
-                    ingredient.category = category
-                    ingredient.save()
-                    print(f"Categoria do ingrediente atualizada para: {category.name}")
+                print(f"Processando ingrediente: {ing_name} (grupo: {group_name})")
                 
-                # Cria o novo ProductIngredient
-                pi = ProductIngredient.objects.create(
-                    product=product,
-                    ingredient=ingredient,
-                    group_name=cat_name,
-                    is_required=bool(is_required),
-                    max_quantity=int(max_quantity)
-                )
-                print(f"ProductIngredient criado: {pi}")
+                # Organiza por grupo
+                if group_name not in group_map:
+                    group_map[group_name] = {
+                        'is_required': is_required,
+                        'max_quantity': max_quantity,
+                        'ingredients': []
+                    }
+                group_map[group_name]['ingredients'].append(ing_name)
                 
             except Exception as e:
                 print(f"Erro ao processar ingrediente: {str(e)}")
                 continue
+        
+        # Processa cada grupo
+        for group_name, group_data in group_map.items():
+            for ing_name in group_data['ingredients']:
+                try:
+                    # Cria ou obtém o ingrediente (sem categoria específica)
+                    ingredient, _ = Ingredient.objects.get_or_create(
+                        name=ing_name,
+                        defaults={'category': None}
+                    )
+                    
+                    # Cria o ProductIngredient com o grupo específico do produto
+                    pi = ProductIngredient.objects.create(
+                        product=product,
+                        ingredient=ingredient,
+                        group_name=group_name,  # Usando o nome do grupo diretamente
+                        is_required=group_data['is_required'],
+                        max_quantity=group_data['max_quantity']
+                    )
+                    print(f"ProductIngredient criado: {product.name} - {group_name} - {ingredient.name}")
+                    
+                except Exception as e:
+                    print(f"Erro ao criar ProductIngredient: {str(e)}")
+                    continue
 
     def perform_update(self, serializer):
         """
@@ -149,55 +157,62 @@ class ProductViewSet(viewsets.ModelViewSet):
         print(f"Total de ingredientes recebidos: {len(ingredients)}")
         
         if ingredients:  # Só remove e recria se houver novos ingredientes
-            # Remove todos os ingredientes existentes
+            # Remove todos os ingredientes existentes deste produto específico
             ProductIngredient.objects.filter(product=product).delete()
             print("Ingredientes antigos removidos")
             
+            # Agrupa ingredientes por grupo para garantir consistência
+            group_map = {}
             for ing_data in ingredients:
                 try:
-                    # Tenta decodificar o JSON
                     ing_obj = json.loads(ing_data)
                     ing_name = ing_obj.get('name')
-                    cat_name = ing_obj.get('category')
+                    group_name = ing_obj.get('groupName')  # Mudando de category para groupName
                     is_required = ing_obj.get('isRequired', False)
                     max_quantity = ing_obj.get('maxQuantity', 1)
                     
-                    print(f"Processando ingrediente: {ing_name} (categoria: {cat_name})")
-                    
-                    if not ing_name:
-                        print("Nome do ingrediente vazio, pulando...")
+                    if not ing_name or not group_name:
+                        print("Nome do ingrediente ou grupo vazio, pulando...")
                         continue
-                        
-                    category = None
-                    if cat_name:
-                        category, _ = IngredientCategory.objects.get_or_create(name=cat_name)
-                        print(f"Categoria criada/encontrada: {category.name}")
-                        
-                    ingredient, _ = Ingredient.objects.get_or_create(
-                        name=ing_name,
-                        defaults={'category': category}
-                    )
-                    print(f"Ingrediente criado/encontrado: {ingredient.name}")
                     
-                    # Se já existe mas não tem categoria, atualiza
-                    if ingredient.category != category:
-                        ingredient.category = category
-                        ingredient.save()
-                        print(f"Categoria do ingrediente atualizada para: {category.name}")
+                    print(f"Processando ingrediente: {ing_name} (grupo: {group_name})")
                     
-                    # Cria o novo ProductIngredient
-                    pi = ProductIngredient.objects.create(
-                        product=product,
-                        ingredient=ingredient,
-                        group_name=cat_name,
-                        is_required=bool(is_required),
-                        max_quantity=int(max_quantity)
-                    )
-                    print(f"ProductIngredient criado: {pi}")
+                    # Organiza por grupo
+                    if group_name not in group_map:
+                        group_map[group_name] = {
+                            'is_required': is_required,
+                            'max_quantity': max_quantity,
+                            'ingredients': []
+                        }
+                    group_map[group_name]['ingredients'].append(ing_name)
                     
                 except Exception as e:
                     print(f"Erro ao processar ingrediente: {str(e)}")
                     continue
+            
+            # Processa cada grupo
+            for group_name, group_data in group_map.items():
+                for ing_name in group_data['ingredients']:
+                    try:
+                        # Cria ou obtém o ingrediente (sem categoria específica)
+                        ingredient, _ = Ingredient.objects.get_or_create(
+                            name=ing_name,
+                            defaults={'category': None}
+                        )
+                        
+                        # Cria o ProductIngredient com o grupo específico do produto
+                        pi = ProductIngredient.objects.create(
+                            product=product,
+                            ingredient=ingredient,
+                            group_name=group_name,  # Usando o nome do grupo diretamente
+                            is_required=group_data['is_required'],
+                            max_quantity=group_data['max_quantity']
+                        )
+                        print(f"ProductIngredient criado: {product.name} - {group_name} - {ingredient.name}")
+                        
+                    except Exception as e:
+                        print(f"Erro ao criar ProductIngredient: {str(e)}")
+                        continue
         else:
             print("Nenhum ingrediente recebido, mantendo os existentes")
 

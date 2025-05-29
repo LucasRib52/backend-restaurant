@@ -48,7 +48,7 @@ class ProductIngredientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductIngredient
-        fields = ['ingredient', 'is_required', 'max_quantity']
+        fields = ['ingredient', 'group_name', 'is_required', 'max_quantity']
 
     def get_ingredient(self, obj):
         return {

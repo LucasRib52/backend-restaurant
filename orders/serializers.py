@@ -1,7 +1,8 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from .models import Order, OrderItem, OrderItemIngredient
 from products.serializers import ProductSerializer, IngredientSerializer
-from products.models import Product, Ingredient
+from products.models import Product, Ingredient, ProductIngredient
 
 class OrderItemIngredientSerializer(serializers.ModelSerializer):
     """
@@ -14,12 +15,38 @@ class OrderItemIngredientSerializer(serializers.ModelSerializer):
         write_only=True,
         source='ingredient'
     )
+    group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItemIngredient
         fields = ('id', 'order_item', 'ingredient', 'ingredient_id',
-                 'is_added', 'price', 'created_at', 'updated_at')
+                 'is_added', 'price', 'created_at', 'updated_at', 'group_name')
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def get_group_name(self, obj):
+        try:
+            # Primeiro tenta pegar o produto do order_item
+            product = obj.order_item.product
+            # Se não tiver product, tenta buscar pelo nome
+            if not product:
+                product_name = obj.order_item.product_name
+                product = Product.objects.filter(name__iexact=product_name).first()
+                if product:
+                    print(f"[AUTO-FIX] Produto associado dinamicamente para OrderItem {obj.order_item.id}: {product.name}")
+                else:
+                    print(f"[DEBUG] Produto não encontrado para o OrderItem {obj.order_item.id} (nem por nome)")
+                    return 'Outros'
+            # Busca o ProductIngredient para este produto e ingrediente
+            try:
+                pi = ProductIngredient.objects.get(product=product, ingredient=obj.ingredient)
+                print(f"[DEBUG] Produto: {product.name}, Ingrediente: {obj.ingredient.name}, Grupo: {pi.group_name}")
+                return pi.group_name
+            except ProductIngredient.DoesNotExist:
+                print(f"[DEBUG] Produto: {product.name}, Ingrediente: {obj.ingredient.name}, Grupo não encontrado!")
+                return 'Outros'
+        except Exception as e:
+            print(f"[DEBUG] Erro ao buscar group_name: {e}")
+            return 'Outros'
 
 class OrderItemSerializer(serializers.ModelSerializer):
     """
@@ -108,6 +135,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         payment_method = validated_data.get('payment_method')
         change_amount = validated_data.get('change_amount')
         
+        # Validação extra: todo item deve ter product_id
+        for idx, item in enumerate(items_data):
+            if not item.get('product_id'):
+                raise ValidationError(f"O item {idx+1} do pedido está sem produto associado (product_id). Corrija antes de prosseguir.")
+        
+        print("[DEBUG] Criando pedido com items:", items_data)
+        
         order = Order.objects.create(
             **validated_data,
             total_amount=total_amount,
@@ -117,27 +151,60 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         )
         
         for item_data in items_data:
-            # Criar o item do pedido
-            order_item = OrderItem.objects.create(
-                order=order,
-                product_name=item_data.get('product_name', 'Produto'),
-                quantity=item_data.get('quantity', 1),
-                unit_price=item_data.get('unit_price', 0),
-                notes=item_data.get('notes', '')
-            )
-            # Adicionar ingredientes se houver
-            if 'ingredients' in item_data:
-                for ingredient_data in item_data['ingredients']:
-                    try:
-                        ingrediente = Ingredient.objects.get(id=ingredient_data['ingredient'])
-                        OrderItemIngredient.objects.create(
-                            order_item=order_item,
-                            ingredient=ingrediente,
-                            is_added=ingredient_data.get('is_added', True),
-                            price=ingredient_data.get('price', ingrediente.price or 0)
-                        )
-                    except Ingredient.DoesNotExist:
-                        continue
+            # Buscar o produto correto
+            product_id = item_data.get('product_id')
+            print(f"[DEBUG] Processando item. product_id recebido: {product_id}")
+            
+            try:
+                product_obj = Product.objects.get(id=product_id)
+                print(f"[DEBUG] Produto encontrado: {product_obj.name} (id: {product_obj.id})")
+                
+                # Criar o item do pedido com o produto associado
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    product=product_obj,  # Garantindo que o produto seja associado
+                    product_name=product_obj.name,  # Usando o nome do produto do banco
+                    quantity=item_data.get('quantity', 1),
+                    unit_price=item_data.get('unit_price', 0),
+                    notes=item_data.get('notes', '')
+                )
+                print(f"[DEBUG] OrderItem criado: id={order_item.id}, product={order_item.product}, product_name={order_item.product_name}")
+                
+                # Adicionar ingredientes se houver
+                if 'ingredients' in item_data:
+                    print(f"[DEBUG] Processando {len(item_data['ingredients'])} ingredientes")
+                    for ingredient_data in item_data['ingredients']:
+                        try:
+                            ingrediente = Ingredient.objects.get(id=ingredient_data['ingredient'])
+                            print(f"[DEBUG] Ingrediente encontrado: {ingrediente.name} (id: {ingrediente.id})")
+                            
+                            # Buscar o grupo do ingrediente no produto
+                            try:
+                                pi = ProductIngredient.objects.get(product=product_obj, ingredient=ingrediente)
+                                print(f"[DEBUG] Grupo do ingrediente encontrado: {pi.group_name}")
+                            except ProductIngredient.DoesNotExist:
+                                print(f"[DEBUG] AVISO: Ingrediente {ingrediente.name} não encontrado no produto {product_obj.name}, criando ProductIngredient automaticamente!")
+                                pi = ProductIngredient.objects.create(
+                                    product=product_obj,
+                                    ingredient=ingrediente,
+                                    group_name='Auto',
+                                    is_required=False,
+                                    max_quantity=1
+                                )
+                            
+                            OrderItemIngredient.objects.create(
+                                order_item=order_item,
+                                ingredient=ingrediente,
+                                is_added=ingredient_data.get('is_added', True),
+                                price=ingredient_data.get('price', ingrediente.price or 0)
+                            )
+                        except Ingredient.DoesNotExist:
+                            print(f"[DEBUG] ERRO: Ingrediente não encontrado com id: {ingredient_data['ingredient']}")
+                            continue
+            except Product.DoesNotExist:
+                print(f"[DEBUG] ERRO: Produto não encontrado com id: {product_id}")
+                continue
+                
         return order
 
 class OrderUpdateSerializer(serializers.ModelSerializer):
