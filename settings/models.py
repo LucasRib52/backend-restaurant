@@ -2,6 +2,8 @@ from django.db import models
 from django.utils.text import slugify
 from django.db.models import JSONField
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+import pytz
 from datetime import datetime, time
 
 class OpeningHour(models.Model):
@@ -41,7 +43,7 @@ class OpeningHour(models.Model):
         """
         Verifica se o restaurante está aberto no momento atual
         """
-        now = datetime.now()
+        now = timezone.now().astimezone(pytz.timezone('America/Sao_Paulo'))
         current_time = now.time()
         current_day = now.weekday()
 
@@ -104,8 +106,7 @@ class Settings(models.Model):
         super().save(*args, **kwargs)
 
     def is_open_now(self):
-        from datetime import datetime
-        now = datetime.now()
+        now = timezone.now().astimezone(pytz.timezone('America/Sao_Paulo'))
         weekday = now.weekday()
         time_now = now.time()
 
