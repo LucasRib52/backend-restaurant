@@ -41,22 +41,34 @@ class OpeningHour(models.Model):
         """
         Verifica se o restaurante está aberto no momento atual
         """
-        now = datetime.now().time()
-        current_day = datetime.now().weekday()
-        next_day = (self.day_of_week + 1) % 7
+        now = datetime.now()
+        current_time = now.time()
+        current_day = now.weekday()
 
         if not self.is_open:
             return False
 
-        # Se for o dia da abertura
-        if current_day == self.day_of_week:
-            return now >= self.opening_time
-        
-        # Se for o dia do fechamento (próximo dia)
-        elif current_day == next_day and self.next_day_closing:
-            return now <= self.closing_time
-        
-        return False
+        # Se o fechamento é no dia seguinte
+        if self.next_day_closing:
+            # Se estamos no dia da abertura
+            if current_day == self.day_of_week:
+                # Se já passou do horário de abertura
+                return current_time >= self.opening_time
+            # Se estamos no dia do fechamento
+            elif current_day == (self.day_of_week + 1) % 7:
+                # Se ainda não passou do horário de fechamento
+                return current_time <= self.closing_time
+            # Se estamos em um dia entre a abertura e o fechamento (para casos de múltiplos dias)
+            elif self.day_of_week > current_day:
+                # Se o dia de abertura é depois do dia atual (ex: domingo > segunda)
+                # significa que o período começou no dia anterior
+                return True
+            return False
+        else:
+            # Se o fechamento é no mesmo dia
+            if current_day == self.day_of_week:
+                return self.opening_time <= current_time <= self.closing_time
+            return False
 
 class Settings(models.Model):
     """
@@ -101,14 +113,18 @@ class Settings(models.Model):
             day = oh.day_of_week
             open_time = oh.opening_time
             close_time = oh.closing_time
-            next_day = (day + 1) % 7
 
             if oh.next_day_closing:
                 # Se hoje é o dia da abertura e já passou da abertura
                 if weekday == day and time_now >= open_time:
                     return True
                 # Se hoje é o dia do fechamento e ainda não passou do fechamento
-                if weekday == next_day and time_now <= close_time:
+                if weekday == (day + 1) % 7 and time_now <= close_time:
+                    return True
+                # Se estamos em um dia entre a abertura e o fechamento (para casos de múltiplos dias)
+                if day > weekday:
+                    # Se o dia de abertura é depois do dia atual (ex: domingo > segunda)
+                    # significa que o período começou no dia anterior
                     return True
             else:
                 if weekday == day and open_time <= time_now <= close_time:
