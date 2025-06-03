@@ -1,5 +1,5 @@
 from django.db import models
-from products.models import Product, Ingredient
+from products.models import Product, Ingredient, Promotion
 
 class Order(models.Model):
     """
@@ -37,12 +37,21 @@ class OrderItem(models.Model):
     """
     Modelo que representa um item de pedido.
     """
+    ITEM_TYPE_CHOICES = [
+        ('regular', 'Produto Regular'),
+        ('promotion', 'Item de Promoção'),
+        ('reward', 'Brinde de Promoção'),
+    ]
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items')
+    promotion = models.ForeignKey(Promotion, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items')
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES, default='regular', verbose_name='Tipo do Item')
     product_name = models.CharField(max_length=100, default='Produto', verbose_name='Nome do Produto')
     quantity = models.PositiveIntegerField(default=1, verbose_name='Quantidade')
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Preço Unitário')
     notes = models.CharField(max_length=200, blank=True, verbose_name='Observações')
+    customization_details = models.JSONField(null=True, blank=True, verbose_name='Detalhes de Personalização')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -51,6 +60,10 @@ class OrderItem(models.Model):
         verbose_name_plural = 'Itens de Pedido'
 
     def __str__(self):
+        if self.item_type == 'promotion':
+            return f"{self.product_name} (Promoção) x {self.quantity}"
+        elif self.item_type == 'reward':
+            return f"{self.product_name} (Brinde) x {self.quantity}"
         return f"{self.product_name} x {self.quantity}"
 
 class OrderItemIngredient(models.Model):

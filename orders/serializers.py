@@ -159,6 +159,19 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 product_obj = Product.objects.get(id=product_id)
                 print(f"[DEBUG] Produto encontrado: {product_obj.name} (id: {product_obj.id})")
                 
+                # --- PATCH: CAMPOS DE PROMOÇÃO ---
+                promotion_id = item_data.get('promotion_id')
+                item_type = item_data.get('item_type', 'regular')
+                customization_details = item_data.get('customization_details')
+                promotion_obj = None
+                if promotion_id:
+                    from products.models import Promotion
+                    try:
+                        promotion_obj = Promotion.objects.get(id=promotion_id)
+                    except Promotion.DoesNotExist:
+                        promotion_obj = None
+                # ----------------------------------
+
                 # Criar o item do pedido com o produto associado
                 order_item = OrderItem.objects.create(
                     order=order,
@@ -166,9 +179,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     product_name=product_obj.name,  # Usando o nome do produto do banco
                     quantity=item_data.get('quantity', 1),
                     unit_price=item_data.get('unit_price', 0),
-                    notes=item_data.get('notes', '')
+                    notes=item_data.get('notes', ''),
+                    # PATCH: campos de promoção
+                    promotion=promotion_obj,
+                    item_type=item_type,
+                    customization_details=customization_details
                 )
-                print(f"[DEBUG] OrderItem criado: id={order_item.id}, product={order_item.product}, product_name={order_item.product_name}")
+                print(f"[DEBUG] OrderItem criado: id={order_item.id}, product={order_item.product}, product_name={order_item.product_name}, item_type={order_item.item_type}, promotion={order_item.promotion}, customization_details={order_item.customization_details}")
                 
                 # Adicionar ingredientes se houver
                 if 'ingredients' in item_data:

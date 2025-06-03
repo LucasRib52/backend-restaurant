@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Category, Product, Ingredient, ProductIngredient, IngredientCategory
+from .models import Category, Product, Ingredient, ProductIngredient, IngredientCategory, Promotion, PromotionItem, PromotionReward
+from django.conf import settings as django_settings
+import json
 
 class CategorySerializer(serializers.ModelSerializer):
     """
@@ -75,4 +77,226 @@ class ProductDetailSerializer(ProductSerializer):
         """
         Retorna a receita total gerada por este produto.
         """
-        return sum(item.unit_price * item.quantity for item in obj.orderitem_set.all()) 
+        return sum(item.unit_price * item.quantity for item in obj.orderitem_set.all())
+
+class PromotionItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer para o modelo PromotionItem.
+    Inclui informações do produto relacionado.
+    """
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        write_only=True,
+        source='product'
+    )
+
+    class Meta:
+        model = PromotionItem
+        fields = ('id', 'promotion', 'product', 'product_id', 'quantity', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+class PromotionRewardSerializer(serializers.ModelSerializer):
+    """
+    Serializer para o modelo PromotionReward.
+    Inclui informações do produto que pode ser escolhido como brinde.
+    """
+    product = ProductSerializer(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        write_only=True,
+        source='product'
+    )
+
+    class Meta:
+        model = PromotionReward
+        fields = ('id', 'promotion', 'product', 'product_id', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+class PromotionSerializer(serializers.ModelSerializer):
+    """
+    Serializer para o modelo Promotion.
+    Inclui informações dos itens e brindes disponíveis.
+    """
+    items = PromotionItemSerializer(many=True, read_only=True)
+    rewards = PromotionRewardSerializer(many=True, read_only=True)
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Promotion
+        fields = ('id', 'name', 'description', 'price', 'image', 'is_active',
+                 'items', 'rewards', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+    def get_image(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return f"{django_settings.MEDIA_URL}{obj.image}"
+        return None
+
+    def get_savings_amount(self, obj):
+        """
+        Calcula quanto o cliente economiza com a promoção.
+        """
+        total_regular_price = sum(
+            item.product.price * item.quantity
+            for item in obj.items.all()
+        )
+        return total_regular_price - obj.price
+
+class PromotionCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer para criar e atualizar uma promoção.
+    Permite definir os itens e brindes da promoção.
+    """
+    items = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False
+    )
+    rewards = serializers.ListField(
+        child=serializers.DictField(),
+        write_only=True,
+        required=False
+    )
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = Promotion
+        fields = ('name', 'description', 'price', 'is_active', 'items', 'rewards', 'image')
+
+    def to_internal_value(self, data):
+        print("Dados recebidos no serializer (raw):", data)
+        print("Tipo dos dados:", type(data))
+        
+        # Converte os dados para um dicionário mutável
+        mutable_data = {}
+        for key, value in data.items():
+            if key == 'image':
+                mutable_data[key] = value
+            elif key == 'price':
+                try:
+                    mutable_data[key] = float(value[0] if isinstance(value, list) else value)
+                except (ValueError, TypeError):
+                    print(f"Erro ao converter price: {value}")
+                    raise serializers.ValidationError({'price': 'Preço inválido'})
+            elif key == 'is_active':
+                mutable_data[key] = (value[0] if isinstance(value, list) else value).lower() == 'true'
+            elif key in ['items', 'rewards']:
+                try:
+                    value_str = value[0] if isinstance(value, list) else value
+                    mutable_data[key] = json.loads(value_str)
+                    print(f"JSON decodificado para {key}:", mutable_data[key])
+                except json.JSONDecodeError as e:
+                    print(f"Erro ao decodificar {key}:", e)
+                    raise serializers.ValidationError({key: 'Formato inválido'})
+            else:
+                mutable_data[key] = value[0] if isinstance(value, list) else value
+
+        print("Dados processados:", mutable_data)
+
+        # Validação básica dos campos
+        if not mutable_data.get('name'):
+            raise serializers.ValidationError({'name': 'Nome é obrigatório'})
+        if not mutable_data.get('description'):
+            raise serializers.ValidationError({'description': 'Descrição é obrigatória'})
+        if mutable_data.get('price') is None:
+            raise serializers.ValidationError({'price': 'Preço é obrigatório'})
+        if not mutable_data.get('items'):
+            raise serializers.ValidationError({'items': 'Adicione pelo menos um item'})
+        if not mutable_data.get('rewards'):
+            raise serializers.ValidationError({'rewards': 'Adicione pelo menos um brinde'})
+
+        # Validação dos itens
+        for item in mutable_data.get('items', []):
+            if not isinstance(item, dict):
+                raise serializers.ValidationError({'items': 'Formato inválido dos itens'})
+            if 'product_id' not in item:
+                raise serializers.ValidationError({'items': 'ID do produto é obrigatório'})
+            if 'quantity' not in item:
+                raise serializers.ValidationError({'items': 'Quantidade é obrigatória'})
+
+        # Validação dos brindes
+        for reward in mutable_data.get('rewards', []):
+            if not isinstance(reward, dict):
+                raise serializers.ValidationError({'rewards': 'Formato inválido dos brindes'})
+            if 'product_id' not in reward:
+                raise serializers.ValidationError({'rewards': 'ID do produto é obrigatório'})
+
+        return super().to_internal_value(mutable_data)
+
+    def create(self, validated_data):
+        print("Dados validados na criação:", validated_data)
+        items_data = validated_data.pop('items', [])
+        rewards_data = validated_data.pop('rewards', [])
+        image = validated_data.pop('image', None)
+        
+        try:
+            promotion = Promotion.objects.create(**validated_data)
+            
+            if image:
+                promotion.image = image
+                promotion.save()
+            
+            # Criar os itens da promoção
+            for item_data in items_data:
+                PromotionItem.objects.create(
+                    promotion=promotion,
+                    product_id=item_data['product_id'],
+                    quantity=item_data.get('quantity', 1)
+                )
+            
+            # Criar os brindes disponíveis
+            for reward_data in rewards_data:
+                PromotionReward.objects.create(
+                    promotion=promotion,
+                    product_id=reward_data['product_id']
+                )
+            
+            return promotion
+        except Exception as e:
+            print("Erro ao criar promoção:", str(e))
+            raise
+
+    def update(self, instance, validated_data):
+        print("Dados validados na atualização:", validated_data)
+        items_data = validated_data.pop('items', None)
+        rewards_data = validated_data.pop('rewards', None)
+        image = validated_data.pop('image', None)
+
+        try:
+            # Atualiza campos simples
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+
+            # Atualiza a imagem se fornecida
+            if image is not None:
+                instance.image = image
+
+            instance.save()
+
+            # Atualiza itens da promoção
+            if items_data is not None:
+                instance.items.all().delete()
+                for item_data in items_data:
+                    PromotionItem.objects.create(
+                        promotion=instance,
+                        product_id=item_data['product_id'],
+                        quantity=item_data.get('quantity', 1)
+                    )
+
+            # Atualiza brindes da promoção
+            if rewards_data is not None:
+                instance.rewards.all().delete()
+                for reward_data in rewards_data:
+                    PromotionReward.objects.create(
+                        promotion=instance,
+                        product_id=reward_data['product_id']
+                    )
+
+            return instance
+        except Exception as e:
+            print("Erro ao atualizar promoção:", str(e))
+            raise 

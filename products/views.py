@@ -3,11 +3,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum, Count
-from .models import Category, Product, Ingredient, ProductIngredient, IngredientCategory
+from .models import Category, Product, Ingredient, ProductIngredient, IngredientCategory, Promotion, PromotionItem, PromotionReward
 from .serializers import (
     CategorySerializer, ProductSerializer,
     ProductDetailSerializer, IngredientSerializer,
-    ProductIngredientSerializer
+    ProductIngredientSerializer, PromotionSerializer,
+    PromotionCreateSerializer
 )
 import json
 
@@ -305,3 +306,60 @@ class IngredientViewSet(viewsets.ModelViewSet):
         ingredients = Ingredient.objects.all()
         serializer = IngredientSerializer(ingredients, many=True)
         return Response(serializer.data)
+
+class PromotionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gerenciamento de promoções.
+    """
+    queryset = Promotion.objects.all()
+    serializer_class = PromotionSerializer
+
+    def get_serializer_class(self):
+        """
+        Retorna o serializer apropriado baseado na ação.
+        """
+        if self.action in ['create', 'update', 'partial_update']:
+            return PromotionCreateSerializer
+        return PromotionSerializer
+
+    def get_queryset(self):
+        """
+        Retorna a lista de promoções, filtrando por status se necessário.
+        """
+        queryset = Promotion.objects.all()
+        show_inactive = self.request.query_params.get('show_inactive', 'false').lower() == 'true'
+        if not show_inactive:
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    def update(self, request, *args, **kwargs):
+        print("Dados recebidos na atualização:", request.data)
+        print("Arquivos recebidos:", request.FILES)
+        print("Content-Type:", request.content_type)
+        return super().update(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        print("Dados recebidos na criação:", request.data)
+        print("Arquivos recebidos:", request.FILES)
+        print("Content-Type:", request.content_type)
+        return super().create(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        """
+        Ativa ou desativa uma promoção.
+        """
+        promotion = self.get_object()
+        promotion.is_active = not promotion.is_active
+        promotion.save()
+        
+        return Response({
+            'id': promotion.id,
+            'name': promotion.name,
+            'is_active': promotion.is_active
+        })
