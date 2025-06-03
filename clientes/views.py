@@ -3,6 +3,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework.pagination import PageNumberPagination
 from settings.models import Settings
 from products.models import Category, Product
 from .serializers import SettingsSerializer, CategorySerializer, ProductSerializer
@@ -34,6 +35,9 @@ def get_store_by_slug(request, business_slug):
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
+class NoPagination(PageNumberPagination):
+    page_size = None
+
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para listar categorias"""
     permission_classes = [AllowAny]
@@ -50,6 +54,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductSerializer
+    pagination_class = NoPagination
 
     def get_queryset(self):
         queryset = super().get_queryset()
