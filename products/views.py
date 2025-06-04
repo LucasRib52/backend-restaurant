@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum, Count
 from .models import Category, Product, Ingredient, ProductIngredient, IngredientCategory, Promotion, PromotionItem, PromotionReward
 from .serializers import (
@@ -12,6 +13,9 @@ from .serializers import (
 )
 import json
 
+class NoPagination(PageNumberPagination):
+    page_size = None
+
 # Create your views here.
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -20,6 +24,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = NoPagination
 
     def get_queryset(self):
         return Category.objects.all()
@@ -43,6 +48,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    pagination_class = NoPagination
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
