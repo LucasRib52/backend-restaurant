@@ -13,8 +13,6 @@ from .serializers import (
 )
 import json
 
-class NoPagination(PageNumberPagination):
-    page_size = None
 
 # Create your views here.
 
@@ -24,7 +22,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    pagination_class = NoPagination
+    pagination_class = None  # ✅ desativa com segurança e clareza
+
 
     def get_queryset(self):
         return Category.objects.all()
@@ -48,7 +47,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    pagination_class = NoPagination
+    pagination_class = None  # ✅ desativa com segurança e clareza
+
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
